@@ -169,3 +169,7 @@ arcpy.Merge_management(mergelist,lu_agg_final_5)
 for fc in mergelist:
     if arcpy.Exists(fc):
         arcpy.Delete_management(fc)
+
+# add latitude,longitude, HRU ID, and Elevation information to the HRU feature class
+
+
