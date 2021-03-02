@@ -29,7 +29,7 @@ env.workspace = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\S
 workspace = arcpy.env.workspace
 
 # step1: add troncon id and other attributes to associated UHRHs
-arcpy.AddField_management("uhrh.shp", "SubId", "Double", "", "", 16)
+arcpy.AddField_management("uhrh.shp", "SubId", "LONG", "", "", 16)
 #arcpy.AddField_management("uhrh.shp", "Node_amont", "LONG", "", "", 16)
 #arcpy.AddField_management("uhrh.shp", "Node_aval", "LONG", "", "", 16)
 # arcpy.AddField_management("uhrh.shp", "Type", "LONG", "", "", 16)
@@ -104,9 +104,11 @@ arcpy.AddField_management("uhrh_diss.shp", "Ch_n", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "FloodP_n", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "IsLake", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "Type", "SHORT", "", "", 16) # NOT NEEDED for Raven. 1 = river and 2 = lake
+arcpy.AddField_management("uhrh_diss.shp", "HyLakeId", "Double", "", "", 16) # NOT NEEDED for Raven. 1 = river and 2 = lake
 
 j = 0
-with arcpy.da.UpdateCursor("uhrh_diss.shp", ("Rivlen", "DownSubId","SubId","IsObs",'BkfWidth','BkfDepth','RivSlope','Ch_n','FloodP_n','IsLake')) as cursor:
+t = 0
+with arcpy.da.UpdateCursor("uhrh_diss.shp", ("Rivlen", "DownSubId","SubId","IsObs",'BkfWidth','BkfDepth','RivSlope','Ch_n','FloodP_n','IsLake','HyLakeId')) as cursor:
      for ROW in cursor:
           #ROW[0] = TRONCON_INFO["TYPE_NO"][j]
           ROW[0] = TRONCON_INFO["Rivlen"][j]
@@ -119,6 +121,9 @@ with arcpy.da.UpdateCursor("uhrh_diss.shp", ("Rivlen", "DownSubId","SubId","IsOb
           ROW[7] = TRONCON_INFO["Ch_n"][j]
           ROW[8] = 0.1
           ROW[9] = TRONCON_INFO["IsLake"][j]
+          if row[9]==1:
+              t = t+1
+              ROW[10] = t
           cursor.updateRow(ROW)
           j += 1
 

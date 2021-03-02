@@ -40,18 +40,18 @@ os.system("saga_cmd shapes_polygons 19 -A " + lu + " -B " + subwatershed + " -RE
 ###########################################################################
 arcpy.CheckOutExtension("Spatial")  #activating spetial analyst module
 
-# run Zonal statistics and Tabulate area tools and join the results to the subwatershed map
+# run Tabulate area to determine the surface area of each LU class in subwatershed
 outareatable = os.path.join(workspace,"outareatable"+"."+"dbf") #
-TabulateArea(subwatershed,"Troncon_id",lu_identity,"gridcode",outareatable,lu_raster)
+TabulateArea(subwatershed,"SubId",lu_identity,"gridcode",outareatable,cellsize1)
 
-# run zonal statistics tool
+# run zonal statistics tool to determine the dominant landuse class in each subwatershed
 outzstable = os.path.join(workspace,"outzstable"+"."+"dbf") #
-outZonalStats = ZonalStatisticsAsTable(subwatershed, "Troncon_id", lu_raster, outzstable,"DATA","MAJORITY")
+outZonalStats = ZonalStatisticsAsTable(subwatershed, "SubId", lu_raster, outzstable,"DATA","MAJORITY")
 #outZonalStats.save(outzstable)
 
-# Join the tables to the subwatersged map
-arcpy.JoinField_management(subwatershed,"Troncon_id",outareatable,"Troncon_id")
-arcpy.JoinField_management(subwatershed,"Troncon_id",outzstable,"Troncon_id")
+# Join the two tables to the subwatershed's attribute table
+arcpy.JoinField_management(subwatershed,"SubId",outareatable,"SubId")
+arcpy.JoinField_management(subwatershed,"SubId",outzstable,"SubId")
 # add subwatershed area (in m2) to the attribute table
 arcpy.AddGeometryAttributes_management(subwatershed, "AREA", "METERS", "SQUARE_METERS")  # area in m2
 ############################################################################
@@ -110,6 +110,7 @@ LU_HRU_agg6 = os.path.join(workspace,"LU_HRU_agg6"+ "." + "shp") #subwatershed m
 arcpy.CopyFeatures_management("LU_HRU_agg_ly", LU_HRU_agg6)
 
 ################################################################################################
+# Defining the threshold and creating the simplified HRU map
 Threshold = 5
 result = arcpy.GetCount_management(subwatershed)
 subwsh_count = int(result.getOutput(0))
