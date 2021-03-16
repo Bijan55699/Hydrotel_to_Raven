@@ -103,14 +103,14 @@ arcpy.AddField_management("uhrh_diss.shp", "RivSlope", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "Ch_n", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "FloodP_n", "Double", "", "", 16)
 arcpy.AddField_management("uhrh_diss.shp", "IsLake", "Double", "", "", 16)
-arcpy.AddField_management("uhrh_diss.shp", "Type", "SHORT", "", "", 16) # NOT NEEDED for Raven. 1 = river and 2 = lake
+#arcpy.AddField_management("uhrh_diss.shp", "Type", "SHORT", "", "", 16) # NOT NEEDED for Raven. 1 = river and 2 = lake
 arcpy.AddField_management("uhrh_diss.shp", "HyLakeId", "Double", "", "", 16) # NOT NEEDED for Raven. 1 = river and 2 = lake
 
+arcpy.CheckOutExtension("Spatial")  #activating spetial analyst module
 j = 0
 t = 0
 with arcpy.da.UpdateCursor("uhrh_diss.shp", ("Rivlen", "DownSubId","SubId","IsObs",'BkfWidth','BkfDepth','RivSlope','Ch_n','FloodP_n','IsLake','HyLakeId')) as cursor:
      for ROW in cursor:
-          #ROW[0] = TRONCON_INFO["TYPE_NO"][j]
           ROW[0] = TRONCON_INFO["Rivlen"][j]
           ROW[1] = TRONCON_INFO["DownSubId"][j]
           ROW[2] = TRONCON_INFO["SubId"][j]
@@ -121,8 +121,8 @@ with arcpy.da.UpdateCursor("uhrh_diss.shp", ("Rivlen", "DownSubId","SubId","IsOb
           ROW[7] = TRONCON_INFO["Ch_n"][j]
           ROW[8] = 0.1
           ROW[9] = TRONCON_INFO["IsLake"][j]
-          if row[9]==1:
-              t = t+1
+          if (ROW[9]==1):
+              t +=1
               ROW[10] = t
           cursor.updateRow(ROW)
           j += 1
