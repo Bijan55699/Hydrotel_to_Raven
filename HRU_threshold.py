@@ -4,7 +4,7 @@ from arcpy import env
 import pandas as pd
 
 arcpy.env.overwriteOutput = True
-workspace = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLNO_MG24HA_2020\physitel\HRU"
+workspace = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLSO_MG24HA_2020\physitel\HRU"
 arcpy.env.workspace = workspace
 subwatershed = os.path.join(workspace,"uhrh_diss"+"."+"shp") #subwatershed map created by Hydrotel_Raven code
 lu_raster = os.path.join(workspace,"occupation_sol"+"."+"tif") #Lu map in raster
@@ -77,7 +77,7 @@ arcpy.JoinField_management(subwatershed,"LakeID",outzstable_lake,"LakeID")
 arcpy.JoinField_management(subwatershed,"LakeID",outzstable_lake_soil,"LakeID")
 
 
-arcpy.DeleteField_management(subwatershed, ["LakeID","LakeID_1","COUNT","AREA","MAJORITY","LakeID_12","COUNT_1","AREA_1","MAJORITY_1"])
+
 
 #sr=arcpy.Describe(lu).spatialReference
 #
@@ -88,6 +88,9 @@ arcpy.DeleteField_management(subwatershed, ["LakeID","LakeID_1","COUNT","AREA","
 # Use Identity to cut the features with subwatershed boundaries
 HRU_identity = os.path.join(workspace,"HRU_identity"+ "." + "shp") #subwatershed map created by Hydrotel_Raven code
 os.system("saga_cmd shapes_polygons 19 -A " + HRU2 + " -B " + subwatershed + " -RESULT " + HRU_identity)
+
+
+
 
 # add major lu class and soil type of the lake features to the HRU_identity attribute table
 out_xls = os.path.join(workspace,"lake_lu_dbf"+ "." + "xls") #
@@ -103,8 +106,8 @@ size = len(df_lu.index)
 for i in range(1,size,1):
     lake_numner = i
     name = "lake_%i.shp" % lake_numner
-    where = ' "LakeID" = %i ' % lake_numner
-    arcpy.SelectLayerByAttribute_management("HRU_identity_lyr", "NEW_SELECTION", where)  # select the subwaterwshed=i in LU map
+    where = ' "LakeID" = %i ' % (lake_numner)
+    arcpy.SelectLayerByAttribute_management("HRU_identity_lyr", "NEW_SELECTION", where)  #
     if arcpy.Describe("HRU_identity_lyr").FIDSet:
         with arcpy.da.UpdateCursor("HRU_identity_lyr", ["soil_type","LU_type","MAJORITY","MAJORITY_1"]) as cursor:
             for row in cursor:
@@ -115,9 +118,10 @@ for i in range(1,size,1):
     arcpy.SelectLayerByAttribute_management('HRU_identity_lyr', "CLEAR_SELECTION")
 
 HRU_identity2 = os.path.join(workspace,"HRU_identity2"+ "." + "shp")
-
 arcpy.CopyFeatures_management("HRU_identity_lyr", HRU_identity2)
+
 arcpy.DeleteField_management(HRU_identity2, ["LakeID","LakeID_1","COUNT","AREA","MAJORITY","LakeID_12","COUNT_1","AREA_1","MAJORITY_1"])
+arcpy.DeleteField_management(subwatershed, ["LakeID","LakeID_1","COUNT","AREA","MAJORITY","LakeID_12","COUNT_1","AREA_1","MAJORITY_1"])
 ###########################################################################
 arcpy.CheckOutExtension("Spatial")  #activating spetial analyst module
 
@@ -442,12 +446,13 @@ arcpy.Delete_management(fco[8])
 
 # adding mean Aspect of HRUs
 arcpy.CheckOutExtension("Spatial")  #activating spetial analyst module
-arcpy.env.workspace= workspace2
+arcpy.env.workspace= workspace
 aspect1 = Aspect("altitude.tif")  # ATTENTION: Aspect in Arcgis is calculated clockwise so East is 90. in Raven's manual Aspect is assumed to be counterclockwise i.e., west 90
 aspect1.save("aspect")
 aspect_shapefile = os.path.join(workspace2,"aspect_shapefile")
 arcpy.RasterToPoint_conversion(aspect1,aspect_shapefile, "Value")
 
+arcpy.env.workspace= workspace2
 arcpy.SplitByAttributes_analysis(HRUF5, workspace2, ['LUID'])
 fci = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"]  # these are splitted shapefiles
 fco = ["T1_sj", "T2_sj", "T3_sj", "T4_sj", "T5_sj", "T6_sj", "T7_sj","T8_sj", "T9_sj"]  # these are splitted shapefiles

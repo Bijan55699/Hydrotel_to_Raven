@@ -8,7 +8,7 @@ import shutil
 Troncon_path = r'C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\INFO_TRONCON.mat'
 data = sio.loadmat(Troncon_path, struct_as_record=False, squeeze_me=True)
 #data= sio.loadmat((Troncon_path))
-region_name = data['SLNO_TRONCON']
+region_name = data['SLSO_TRONCON']
 size = region_name.shape[0]
 s = size-1
 
@@ -18,14 +18,14 @@ for i in range(size):
     df.append([rec.NOEUD_AVAL.NUMERO,rec.NOEUD_AMONT.NUMERO,rec.NO_TRONCON,rec.TYPE_NO,rec.LONGUEUR,rec.LARGEUR,rec.UHRH_ASSOCIES,rec.C_MANNING,rec.PENTE_MOYENNE,rec.SUPERFICIE_DRAINEE])
 TRONCON_INFO= pd.DataFrame(df,columns = ['NODE_AVAL','NODE_AMONT','SubId','TYPE_NO','Rivlen','BnkfWidth','ASSOCI_UHRH','Ch_n','RivSlope','SA_Up'])
 
-pathtoDirectory = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLNO_MG24HA_2020\physitel"
+pathtoDirectory = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLSO_MG24HA_2020\physitel"
 workspace = os.path.join(pathtoDirectory+ "\HRU")
 
 shutil.copytree(pathtoDirectory,workspace)
 
 # step 0: set environment workspace for arcpy
 arcpy.env.overwriteOutput = True
-env.workspace = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLNO_MG24HA_2020\physitel\HRU"
+env.workspace = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLSO_MG24HA_2020\physitel\HRU"
 workspace = arcpy.env.workspace
 
 # step1: add troncon id and other attributes to associated UHRHs
