@@ -9,9 +9,7 @@ import scipy.io as sio
 import shutil
 import geopandas as gpd
 import os
-import numpy as np
 from geopandas.tools import sjoin
-from osgeo import gdal
 from rasterstats import zonal_stats
 #######################################################################################################################################################
 
@@ -249,7 +247,7 @@ subbasin['Lake_Area'] = subbasin['Lake_Are_1']
 
 subbasin = subbasin.drop(['Lake_name','Country','Continent','Poly_src','Grand_id','Lake_area','Shore_len','Shore_dev','Vol_total',
                           'Vol_res','Vol_src','Depth_avg','Dis_avg','Res_time','Elevation','Slope_100',
-                          'Wshd_area','Pour_long','Pour_lat','Shape_Leng','Shape_Area','ident_x','ident_y','Hylak_id','Lake_Are_1'], axis=1)
+                          'Wshd_area','Pour_long','Pour_lat','Shape_Leng','Shape_Area','ident_x','ident_y','Hylak_id','Lake_Are_1','index_left'], axis=1)
 
 # writing the final subbasin map
 os.chdir(workspace)

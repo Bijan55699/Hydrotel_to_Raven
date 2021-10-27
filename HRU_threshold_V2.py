@@ -4,30 +4,26 @@ This script delineates the HRU map of a watershed using the Physitel inputs/outp
 
 """
 import pandas as pd
-import scipy.io as sio
-import shutil
+import os
 import geopandas as gpd
-import os,subprocess
-import numpy as np
 from geopandas.tools import sjoin
-from osgeo import gdal
 from rasterstats import zonal_stats
 import rasterio
 from rasterio.features import shapes
 
 ###################################################################################################
 pathtoDirectory = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLSO_MG24HA_2020\physitel"
-workspace = os.path.join(pathtoDirectory+ "\Test")
+workspace = os.path.join(pathtoDirectory+ "\HRU")
 
 #read the subbasin, land use, and soil maps
 
-subwshd_pth = os.path.join(workspace,"subbasin_test"+"."+"shp") #subwatershed map created by Hydrotel_Raven_V2 script
-lu_raster = os.path.join(workspace,"lu_test"+"."+"tif") #Lu map in raster
-soil_raster = os.path.join(workspace,"soil_type"+"."+"tif") #soil type map in raster
+subwshd_pth = os.path.join(workspace,"subbasin_final"+"."+"shp") #subwatershed map created by Hydrotel_Raven_V2 script
+lu_raster = os.path.join(workspace,"occupation_sol"+"."+"tif") #Lu map in raster
+soil_raster = os.path.join(workspace,"type_sol"+"."+"tif") #soil type map in raster
 lake = os.path.join(workspace,"lacs"+"."+"shp") #lake map
 altitude = os.path.join(workspace,"altitude"+ "." + "tif") # The altitude raster map
-aspect = os.path.join(workspace,"aspect"+ "." + "tif") # The aspect raster map
-slope = os.path.join(workspace,"slope"+ "." + "tif") # The slope raster map
+aspect = os.path.join(workspace,"orientation"+ "." + "tif") # The aspect raster map
+slope = os.path.join(workspace,"pente"+ "." + "tif") # The slope raster map
 # Converting LU and soil rasters to polygon for further processing
 
 
@@ -137,8 +133,8 @@ for index, row in hru6.iterrows():
 
 hru7 = hru6.drop(['index_left','LU_ID_1','LU_ID_2','soil_ID_1','soil_ID_2','soil_ID','LU_ID'], axis=1)
 
-# os.chdir(workspace)
-# hru7.to_file('hru7.shp')
+#os.chdir(workspace)
+#hru7.to_file('hru7.shp')
 
 # calculate major land use and soil classes within each subbasin feature
 subbasin = gpd.read_file(subwshd_pth)
@@ -177,8 +173,8 @@ subbasin = subbasin.drop(['majority'], axis=1)
 
 hru8 = gpd.overlay(hru7, subbasin, how='intersection')
 
-# os.chdir(workspace)
-# hru8.to_file('hru8.shp')
+#os.chdir(workspace)
+#hru8.to_file('hru8.shp')
 
 
 # calculate area of each land use class within each subbasin: This will be needed to dissolve small (based on a threshold given by user)
@@ -366,6 +362,18 @@ merge['HRU_CenY'] = merge.centroid.y
 
 merge = merge.drop(['index_left','ident','index','OBJECTID','LU_major','soil_major','LU_agg','LU','SOIL'], axis=1)
 
+# removing the lake information from non-lake HRUs added because of intersection with subbasin map.
+
+for index, row in merge.iterrows():
+    if merge.loc[index,'Landuse_ID'] > 2:
+        merge.loc[index,'Lake_Area'] = 0.
+        merge.loc[index,'HyLakeId'] = 0.
+        merge.loc[index,'Lake_Cat'] = 0
+        merge.loc[index,'FloodP_n'] = 0.04
+        merge.loc[index,'Ch_n'] = 0.04
+        merge.loc[index,'Lake_Vol'] = 0.
+        merge.loc[index,'LakeDepth'] = 0.
+        merge.loc[index,'Lake_type'] = 0.
 
 os.chdir(workspace)
 merge.to_file('hru_final.shp')
