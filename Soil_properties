@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb  8 10:08:53 2022
+
+@author: Mohammad Bizhanimanzar
+
+This script will read the soil layer propoerties (thickness, initial releative humidity,  of the HRUs (three layer for each HRU), 
+"""
+

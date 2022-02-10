@@ -11,34 +11,49 @@ import geopandas as gpd
 import os
 from geopandas.tools import sjoin
 from rasterstats import zonal_stats
-#######################################################################################################################################################
+# %% Step1: read the Troncon data (.mat file) and copy the physitel data to /HRU directory
 
-Troncon_path = r'C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\INFO_TRONCON.mat'
+Troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON.mat'
 data = sio.loadmat(Troncon_path, struct_as_record=False, squeeze_me=True)
-#data= sio.loadmat((Troncon_path))
 region_name = data['SLSO_TRONCON']
 size = region_name.shape[0]
 s = size-1
+ss = 0
+ll=1
+
+pathtoDirectory = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
+workspace = os.path.join(pathtoDirectory+ "/HRU")
+shutil.copytree(pathtoDirectory,workspace)
+# %% STEP2: Define a Troncon_info dataframe to work with appended data frame .mat file
 
 df = []
 for i in range(size):
     rec = region_name[i]
     df.append([rec.NOEUD_AVAL.NUMERO,rec.NOEUD_AMONT.NUMERO,rec.NO_TRONCON,rec.TYPE_NO,rec.LONGUEUR,rec.LARGEUR,rec.UHRH_ASSOCIES,rec.C_MANNING,rec.PENTE_MOYENNE,rec.SUPERFICIE_DRAINEE])
-Troncon_info= pd.DataFrame(df,columns = ['NODE_AVAL','NODE_AMONT','SubId','TYPE_NO','RivLength','BnkfWidth','ASSOCI_UHRH','Ch_n','RivSlope','SA_Up'])
-
-pathtoDirectory = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\DEH\MG24HA\SLSO_MG24HA_2020\physitel"
-workspace = os.path.join(pathtoDirectory+ "\HRU")
-shutil.copytree(pathtoDirectory,workspace)
-
-#######################################################################################################################################################
-# step1: add subbasin id (SubId) and other attributes to UHRH shape file
-
-uhrh_fpth = os.path.join(workspace,"uhrh"+ "." + "shp") # The uhrh shape file created by Physitel
-uhrh = gpd.read_file(uhrh_fpth)
-uhrh['SubId'] = 0
+Troncon_info= pd.DataFrame(df,
+                           columns = {"NODE_AVAL": int,
+                                      "NODE_AMONT": int,
+                                      "SubId": int,
+                                      "TYPE_NO": int,
+                                      "RivLength": float,
+                                      "BnkfWidth": float,
+                                      "ASSOCI_UHRH": int,
+                                      "Ch_n": float,
+                                      "RivSlope": float,
+                                      "SA_Up": float,
+                                      },
+                           index = None,
+                           )
 
 Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'Ch_n'] = 0.
 Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'BnkfWidth'] = 0.
+
+# %%  step1: add subbasin id (SubId) to uhrh shapefile and assign its values based on Troncon_info['ASSOCI_UHRH']
+
+uhrh_fpth = os.path.join(workspace,"uhrh"+ "." + "shp") # The uhrh shape file created by Physitel
+uhrh = gpd.read_file(uhrh_fpth)
+uhrh['SubId'] = ss
+
 
 i=0
 for i in range(size):
@@ -61,18 +76,18 @@ for i in range(size):
             if uhrh.loc[index,'ident'] in dict.values():
                 uhrh.loc[index,'SubId'] = id
 
-os.chdir(workspace)
-uhrh.to_file('uhrh_diss.shp')
+# os.chdir(workspace)
+# uhrh.to_file('uhrh_diss.shp')
 
-# step2: merge the uhrhs based on SubId field. the number of feature classes in the resulting file should be same sa number of Troncons
+# %% step2: merge the uhrhs based on SubId field. the number of feature classes in the resulting file should be same sa number of field in Troncon_info
 
-uhrh_diss = gpd.read_file(os.path.join(workspace,"uhrh_diss"+ "." + "shp"))
-uhrh_dissolve = uhrh_diss.dissolve(by='SubId')
+# uhrh_diss = gpd.read_file(os.path.join(workspace,"uhrh_diss"+ "." + "shp"))
+uhrh_dissolve = uhrh.dissolve(by='SubId')
 uhrh_dissolve.reset_index(inplace=True)    
 uhrh_dissolve['BasArea'] = uhrh_dissolve.area  # calculating the Area (m2) of each subbasin       
     
-os.chdir(workspace)
-uhrh_dissolve.to_file('uhrh_dissolve.shp')
+# os.chdir(workspace)
+# uhrh_dissolve.to_file('uhrh_dissolve.shp')
 
 # step3: finding the downstream subwatershed ID associated with each uhrh
 
@@ -91,14 +106,14 @@ for i in range(size):
     
 Troncon_info['Has_Gauge'] = (Troncon_info['DowSubId'] == -1).astype(int)  #create a boolean indicator to set 1 for gauged subwatershed and 0 for others
 Troncon_info['BkfDepth'] = 0.13 * (Troncon_info['SA_Up'] ** 0.4) # taken from equation 10 in paper Fossey et. al., 2015
-Troncon_info['Lake_Cat']= 0
-Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'Lake_Cat'] = 1    
+Troncon_info['Lake_Cat']= ss
+Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'Lake_Cat'] = int(1)
 
 # TO BE IMPROVED:
 # In Troncon_info dataframe, the outlet has the DowSubId of -1, which can be the number of gauge. to be discussed.
 
-# step4: determining the lake characteristics using the HyLAKES database
-pth = r"C:\Users\mohbiz1\Desktop\Dossier_travail\Hydrotel\HydroLAKES_polys_v10_shp"
+# %% step4: determining the lake characteristics using the HyLAKES database
+pth = '/home/mohammad/Dossier_travail/Hydrotel/HydroLAKES_polys_v10_shp'
 pth2 = os.path.join(pth,"HydroLAKES_polys_v10_Canada2"+ "." + "shp") # The clipped version of HyLAKES for Canada
 HyLAKES_Canada = gpd.read_file(pth2)
 
@@ -116,7 +131,7 @@ repeatd_ident.reset_index(level=0,inplace = True)
 diss_repeat = repeatd_ident.dissolve(by = 'index',aggfunc='sum')
 
 diss_repeat['Depth_avg'] = diss_repeat['Vol_total']/diss_repeat['Lake_area'] #recalculating lake average depth
-diss_repeat['Lake_type'] = 1
+diss_repeat['Lake_type'] = int(1)
 
 #replacing this to the repeatd_ident dataframe
 
@@ -130,48 +145,82 @@ lake_final.to_file('lake_final.shp')
 # Intersecting with uhrh_dissolve to find the SubId of each lake
 lake_sub = sjoin(lake_final,uhrh_dissolve,how = 'right',op='within')
 
-lake_sub['Lake_Area'] = lake_sub['Lake_area'] * 1000000.  # To convert the area in Km2 in HydroLAKES database to m2
+lake_sub['LakeArea'] = lake_sub['Lake_area'] * 1000000.  # To convert the area in Km2 in HydroLAKES database to m2
 lake_sub['LakeVol'] = lake_sub['Vol_total'] / 1000.  # To convert the volume in MCM in HydroLAKES database to km3
 lake_sub['LakeDepth'] = lake_sub['Depth_avg'] 
 
-os.chdir(workspace)
-lake_sub.to_file('uhrh_with_lake.shp')
+# os.chdir(workspace)
+# lake_sub.to_file('uhrh_with_lake.shp')
 
-# step5: add the downstream ID to the shapefile of the created subbasin shapefile (uhrh_diss.shp)    
-pth4 = os.path.join(workspace,"uhrh_with_lake"+ "." + "shp")    
-subbasin = gpd.read_file(pth4)
+# %% step5: add the downstream ID to the shapefile of the created subbasin shapefile (uhrh_diss.shp)    
+# pth4 = os.path.join(workspace,"uhrh_with_lake"+ "." + "shp")    
 
-subbasin['DowSubId'] = 0
-subbasin['RivLength'] = 0.0
-subbasin['BkfWidth'] = 0.0
-subbasin['BkfDepth'] = 0.0
-subbasin['Has_Gauge'] = 0.0
-subbasin['RivSlope'] = 0.0
-subbasin['Ch_n'] = 0.0
-subbasin['FloodP_n'] = 0.0
-subbasin['Lake_Cat'] = 0
+subbasin= pd.merge(Troncon_info,lake_sub, on= 'SubId')
 #Lake data from HydroLAKES database
 subbasin['HyLakeId'] = subbasin['Hylak_id']
+subbasin['Laketype'] = subbasin['Lake_type']
+subbasin['FloodP_n'] = subbasin['Ch_n']
+# subbasin['LakeArea'] = subbasin['Lake_area']
 
-j=0
-for index, row in subbasin.iterrows():
-    if index > subbasin.index[-1]:
-        break
-    subbasin.loc[index,'DowSubId'] = Troncon_info['DowSubId'][j]
-    subbasin.loc[index,'RivLength'] = Troncon_info['RivLength'][j]
-    subbasin.loc[index,'BkfDepth'] = Troncon_info['BkfDepth'][j]
-    subbasin.loc[index,'BkfWidth'] = Troncon_info['BnkfWidth'][j]
-    subbasin.loc[index,'Has_Gauge'] = Troncon_info['Has_Gauge'][j]
-    subbasin.loc[index,'RivSlope'] = Troncon_info['RivSlope'][j]
-    subbasin.loc[index,'Ch_n'] = Troncon_info['Ch_n'][j]
-    subbasin.loc[index,'FloodP_n'] = Troncon_info['Ch_n'][j]    # to be discussed
-    subbasin.loc[index,'Lake_Cat'] = Troncon_info['Lake_Cat'][j]
-    j = j+1
+crs = lake_sub.crs
+subbasin = gpd.GeoDataFrame(subbasin,geometry=subbasin['geometry'],crs = crs)
 
-os.chdir(workspace)
-subbasin.to_file('subbasin.shp')
+subbasin = subbasin.drop(['NODE_AVAL','NODE_AMONT','ASSOCI_UHRH','index_left','Lake_name','Country','Continent','Poly_src','Grand_id','Shore_len','Shore_dev','Vol_src','Dis_avg',
+                          'Res_time','Elevation','Slope_100','Wshd_area','Pour_long','Pour_lat','Hylak_id','ident_left',
+                          'ident_right','Lake_area','Vol_res','Vol_total','Lake_type'], axis=1)
 
-# step 6: calculating BasSlope,BasAspect,, and Mean_Elev for each subbasin
+
+# schema = gpd.io.file.infer_schema(subbasin)
+# schema['properties']['BnkfWidth'] = 'float'
+# schema['properties']['Ch_n'] = 'float'
+# schema['properties']['FloodP_n'] = 'float'
+# schema['properties']['HyLakeId'] = 'int'
+# schema['properties']['Laketype'] = 'int'
+
+# subbasin['RivLength'] = subbasin['RivLength'].astype(float)
+# subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
+# subbasin['Ch_n'] = subbasin['Ch_n'].astype(float)
+# subbasin['RivSlope'] = subbasin['RivSlope'].astype(float)
+# subbasin['SA_Up'] = subbasin['SA_Up'].astype(float)
+# subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
+
+
+# os.chdir(workspace)
+# subbasin.to_file('subbasin.shp',schema = schema)
+
+
+
+# subbasin = gpd.read_file(pth4)
+
+# subbasin['DowSubId'] = 0
+# subbasin['RivLength'] = 0.0
+# subbasin['BkfWidth'] = 0.0
+# subbasin['BkfDepth'] = 0.0
+# subbasin['Has_Gauge'] = 0.0
+# subbasin['RivSlope'] = 0.0
+# subbasin['Ch_n'] = 0.0
+# subbasin['FloodP_n'] = 0.0
+# subbasin['Lake_Cat'] = int(0)
+
+
+# j=0
+# for index, row in subbasin.iterrows():
+#     if index > subbasin.index[-1]:
+#         break
+#     subbasin.loc[index,'DowSubId'] = Troncon_info['DowSubId'][j]
+#     subbasin.loc[index,'RivLength'] = Troncon_info['RivLength'][j]
+#     subbasin.loc[index,'BkfDepth'] = Troncon_info['BkfDepth'][j]
+#     subbasin.loc[index,'BkfWidth'] = Troncon_info['BnkfWidth'][j]
+#     subbasin.loc[index,'Has_Gauge'] = Troncon_info['Has_Gauge'][j]
+#     subbasin.loc[index,'RivSlope'] = Troncon_info['RivSlope'][j]
+#     subbasin.loc[index,'Ch_n'] = Troncon_info['Ch_n'][j]
+#     subbasin.loc[index,'FloodP_n'] = Troncon_info['Ch_n'][j]    # to be discussed
+#     subbasin.loc[index,'Lake_Cat'] = Troncon_info['Lake_Cat'][j]
+#     j = j+1
+
+
+
+# %% step 6: calculating BasSlope,BasAspect,, and Mean_Elev for each subbasin
 
 # Slope
 
@@ -188,8 +237,8 @@ os.system(cmd_aspect)
 
 # loop over the subbasin features and adding the mean elevation, mean aspect and 
 ss = os.path.join(workspace,"slope"+ "." + "tif") # The lake shape file created by Physitel
-pth5 = os.path.join(workspace,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
-subbasin = gpd.read_file(pth5)
+# pth5 = os.path.join(workspace,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
+# subbasin = gpd.read_file(pth5)
 
 subbasin = subbasin.join(
     pd.DataFrame(
@@ -243,20 +292,27 @@ subbasin['MeanElev'] = subbasin['mean']
 subbasin = subbasin.drop(['mean'], axis=1)
 
 # some cleaning: removing irrelevant attributes
-subbasin['Lake_Area'] = subbasin['Lake_Are_1']
+# subbasin['Lake_Area'] = subbasin['Lake_Are_1']
 
-subbasin = subbasin.drop(['Lake_name','Country','Continent','Poly_src','Grand_id','Lake_area','Shore_len','Shore_dev','Vol_total',
-                          'Vol_res','Vol_src','Depth_avg','Dis_avg','Res_time','Elevation','Slope_100',
-                          'Wshd_area','Pour_long','Pour_lat','Shape_Leng','Shape_Area','ident_x','ident_y','Hylak_id','Lake_Are_1','index_left'], axis=1)
+# subbasin = subbasin.drop(['Lake_name','Country','Continent','Poly_src','Grand_id','Lake_area','Shore_len','Shore_dev','Vol_total',
+#                           'Vol_res','Vol_src','Depth_avg','Dis_avg','Res_time','Elevation','Slope_100',
+#                           'Wshd_area','Pour_long','Pour_lat','Shape_Leng','Shape_Area','Hylak_id','Lake_Are_1','index_left'], axis=1)
 
 # writing the final subbasin map
+schema = gpd.io.file.infer_schema(subbasin)
+schema['properties']['BnkfWidth'] = 'float'
+schema['properties']['Ch_n'] = 'float'
+schema['properties']['FloodP_n'] = 'float'
+schema['properties']['HyLakeId'] = 'int'
+schema['properties']['Laketype'] = 'int'
+
 os.chdir(workspace)
-subbasin.to_file('subbasin_final.shp')
+subbasin.to_file('subbasin.shp',schema = schema)
 
 
-for fname in os.listdir(workspace):
-    if fname.startswith("lake_final"):
-        os.remove(os.path.join(workspace, fname))
+# for fname in os.listdir(workspace):
+#     if fname.startswith("lake_final"):
+#         os.remove(os.path.join(workspace, fname))
 
 
 
