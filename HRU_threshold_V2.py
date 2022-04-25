@@ -27,7 +27,7 @@ soil_raster = os.path.join(workspace,"type_sol"+"."+"tif") #soil type map in ras
 lake = os.path.join(workspace,"lacs"+"."+"shp") #lake map
 altitude = os.path.join(workspace,"altitude"+ "." + "tif") # The altitude raster map
 aspect = os.path.join(workspace,"orientation"+ "." + "tif") # The aspect raster map
-slope = os.path.join(workspace,"pente"+ "." + "tif") # The slope raster map
+slope = os.path.join(workspace,"slope"+ "." + "tif") # The slope raster map
 uhrh_pth = os.path.join(workspace,"uhrh"+"."+"shp") # uhrh map of the region (created by Physitel)
 subbasin = gpd.read_file(subwshd_pth)
 lake_poly = gpd.read_file(lake)
@@ -61,8 +61,6 @@ lu_poly  = gpd.GeoDataFrame.from_features(geoms,crs=ras_crs)
 lu_poly = lu_poly.to_crs(subbasin.crs)
 lu_poly['LU_ID'] = lu_poly['LU_ID'].astype(int)
 
-os.chdir(workspace)
-lu_poly.to_file('lu_test.shp')
 
 # soil
 
@@ -84,8 +82,6 @@ soil_poly  = gpd.GeoDataFrame.from_features(geoms,crs=ras_crs)
 soil_poly = soil_poly.to_crs(subbasin.crs)
 soil_poly['soil_ID'] = soil_poly['soil_ID'].astype(int)
 
-# os.chdir(workspace)
-# soil_poly.to_file('soil_type.shp')
 
 # %% overlaying the soil and land use map to create the HRU map, using Union tool in Geopandas
 
@@ -123,7 +119,7 @@ hru6 = sjoin(lake_poly,hru5,how = 'right',op='within')
 # hru6.to_file('hru6_3.shp')
 
 hru6['LU'] = int(0)
-hru6['SOIL'] = int(0)/rasterized
+hru6['SOIL'] = int(0)
 
 for index, row in hru6.iterrows():
     if hru6.loc[index,'ident_2'] < 0 and hru6.loc[index,'ident_2'] != 'nan':
@@ -216,38 +212,7 @@ zs_df.reset_index(inplace=True)
 zs_df['SubId'] = zs_df['index'] +1
 
 
-
-#zs_df = zs_df.apply(pd.to_numeric,downcast = 'signed')
-
-
 subbasin = subbasin.merge(zs_df, on = 'SubId')
-
-
-# subbasin ['LUID_1'] = 0.  # No data
-# subbasin ['LUID_2'] = 0.  # Water
-# subbasin ['LUID_3'] = 0.  # Bare soil
-# subbasin ['LUID_4'] = 0.  # deciduous forest
-# subbasin ['LUID_5'] = 0.  # agricultur
-# subbasin ['LUID_6'] = 0.  # coniferous forest
-# subbasin ['LUID_7'] = 0.  # impermeable surface
-# subbasin ['LUID_8'] = 0.  # peatland
-# subbasin ['LUID_9'] = 0.  # wetland
-
-# for index, row in subbasin.iterrows():
-#     sub = subbasin.loc[subbasin['SubId'] == subbasin['SubId'][index]] # selects the subbasin a in the subbasin map
-#     intersection = gpd.overlay(sub, lu_poly, how='intersection') # intersection operation
-#     intersection['area'] = intersection.area  # the area of each row in the intersection   
-#     subbasin.loc[index,'LUID_2'] = intersection.loc[intersection['LU_ID'] == 2,'area'].sum()
-#     subbasin.loc[index,'LUID_3'] = intersection.loc[intersection['LU_ID'] == 3,'area'].sum()
-#     subbasin.loc[index,'LUID_4'] = intersection.loc[intersection['LU_ID'] == 4,'area'].sum()
-#     subbasin.loc[index,'LUID_5'] = intersection.loc[intersection['LU_ID'] == 5,'area'].sum()
-#     subbasin.loc[index,'LUID_6'] = intersection.loc[intersection['LU_ID'] == 6,'area'].sum()
-#     subbasin.loc[index,'LUID_7'] = intersection.loc[intersection['LU_ID'] == 7,'area'].sum()
-#     subbasin.loc[index,'LUID_8'] = intersection.loc[intersection['LU_ID'] == 8,'area'].sum()
-#     subbasin.loc[index,'LUID_9'] = intersection.loc[intersection['LU_ID'] == 9,'area'].sum()
-        
-# os.chdir(workspace)
-# subbasin.to_file('subbasin_final.shp')
  
 # %% 
 # Defining the threshold and creating the aggregated HRU map
@@ -302,41 +267,6 @@ for i in range(subbasin.shape[0]):
     temp2 = merge.append(temp)
     merge = temp2
 
-# os.chdir(workspace)
-# merge.to_file('hru9.shp')
-
-# hru9= gpd.GeoDataFrame(merge,columns = {"LU": int,
-#                                       "SOIL": int,
-#                                       "SubId": int,
-#                                       "TYPE_NO": int,
-#                                       "RivLength": float,
-#                                       "BnkfWidth": float,
-#                                       "Ch_n": float,
-#                                       "RivSlope": float,
-#                                       "SA_Up": float,
-#                                       "DowSubId": int,
-#                                       "Has_Gauge": int,
-#                                       "BnkfDepth": int,
-#                                       "Lake_Cat": int,
-#                                       "Depth_avg": float,
-#                                       "BasArea": float,
-#                                       "LakeVol": float,
-#                                       "LakeDepth": float,
-#                                       "HyLakeId": int,
-#                                       "Laketype":int,
-#                                       "FloodP_n": float,
-#                                       "LakeArea": float,
-#                                       "BasSlope": float,
-#                                       "BasAspect": float,
-#                                       "MeanElev": float,
-#                                       "LU_major": int,
-#                                       "soil_major":int,
-#                                       "LU_agg": int,
-#                                       "geometry":merge['geometry']
-#                                       },
-#                            index = None,
-#                            )
-
 #############################################################################
 merge = merge.reset_index()
 merge['SOIL'] = merge['SOIL'].astype(int)
@@ -372,13 +302,13 @@ merge['Soil_ID'] = merge['SOIL']
 merge['Landuse_ID'] = merge['LU_agg']
 
 
-st = {1:'sand', 2:'loamy_sand', 3:'sandy_loam', 4:'loam', 5:'silt_loam', 6:'silt', 7:'sandy_clay_loam', 8:'clay_loam', 9:'silty_clay_loam',
-      10:'sandy_clay', 11:'silty_clay', 12:'clay'}  # to be confirned with DEH
+st = {1:'SAND', 2:'LOAMY_SAND', 3:'SANDY_LOAM', 4:'LOAM', 5:'SILTY_LOAM', 6:'SILT', 7:'SANDY_CLAY_LOAM', 8:'CLAY_LOAM', 9:'SILTY_CLAY_LOAM',
+      10:'SANDY_CLAY', 11:'SILTY_CLAY', 12:'CLAY'}  # to be confirned with DEH
 
 merge['SOIL_PROF'] = merge['Soil_ID'].map(st)
 
 
-lu_codes = st = {1:'No_data', 2:'Water', 3:'bare_soil', 4:'deciduous_forest', 5:'agriculture', 6:'coniferous_forest', 7:'impermeable_surface', 8:'peatland', 9:'wetland'}  # to be confirned with DEH
+lu_codes = {1:'NO_DATA', 2:'WATER', 3:'BARE_SOIL', 4:'DECIDUOUS_FOREST', 5:'AGRICULTURE', 6:'CONIFEROUS_FOREST', 7:'IMPERMEABLE_SURFACE', 8:'PEATLAND', 9:'WETLAND'}  # to be confirned with DEH
 
 merge['LAND_USE_CODE'] = merge['LU_agg'].map(lu_codes)
 merge['VEG_C'] = merge['LAND_USE_CODE']
@@ -388,13 +318,6 @@ merge['VEG_C'] = merge['VEG_C'].astype(str)
 # merge.to_file('hru10.shp')
 #############################################################
 ## add latitude,longitude, HRU ID, Slope, aspect, and Elevation to the HRU feature class
-
-# adding HRU_ID
-merge['HRU_ID'] = int(0)
-j=1
-for index, row in merge.iterrows():
-    merge.loc[index,'HRU_ID'] = j
-    j = j+1
 
 
 # calculating the ara of each HRU polygon in m2
@@ -460,12 +383,14 @@ merge = merge.drop(['mean'], axis=1)
 
 # adding latitude, longitude
 
-merge['HRU_CenX'] = merge.centroid.x
-merge['HRU_CenY'] = merge.centroid.y
+
+# merge = merge.to_crs(4326) # EPSG=4326 (WGS84)
+# merge['HRU_CenX'] = merge.centroid.x
+# merge['HRU_CenY'] = merge.centroid.y
 
 
 
-merge = merge.drop(['ident_left','ident','index','OBJECTID','LU_major','soil_major','LU_agg','LU','SOIL'], axis=1)
+merge = merge.drop(['index','OBJECTID','LU_major','soil_major','LU_agg','LU','SOIL'], axis=1)
 
 # removing the lake information from non-lake HRUs added because of intersection with subbasin map.
 
@@ -475,61 +400,124 @@ for index, row in merge.iterrows():
         merge.loc[index,'Lake_Area'] = 0.
         merge.loc[index,'HyLakeId'] = 0
         merge.loc[index,'Lake_Cat'] = 0
-        merge.loc[index,'FloodP_n'] = 0.04
+#        merge.loc[index,'FloodP_n'] = 0.04
         merge.loc[index,'Ch_n'] = 0.04
         merge.loc[index,'LakeVol'] = 0.
         merge.loc[index,'LakeDepth'] = 0.
         merge.loc[index,'Laketype'] = 0
-
-
-merge['HRU_IsLake'] = -1
-for index, row in merge.iterrows():
-    if merge.loc[index,'Lake_Cat'] > 0:
-        merge.loc[index,'HRU_IsLake'] = 1
+ 
         
+merge['FloodP_n'] = 0.04 
 merge['Laketype'] = merge['Laketype'].astype('Int64')        
 # merge.loc[merge.Lake_Cat > 1, 'HRU_IsLake'] = int(1)
 
+
+merge['BkfWidth'] = merge['BnkfWidth']
+merge = merge.drop(['BnkfWidth'], axis=1)
+
+# adding HRU_ID
+merge['HRU_ID'] = int(0)
+j=1
+for index, row in merge.iterrows():
+    merge.loc[index,'HRU_ID'] = j
+    j = j+1
+
+
 # %% reading the soil type of a RHHU then mapping its attributes to the HRUs within the RHHU, 
+# merge = merge.to_crs(lu_poly.crs)
 
-# pth_bv3c = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/simulation/simulation'
+pth_bv3c = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/simulation/simulation/bv3c.csv'
 
-# soil_layer = pd.read_csv('bv3c.csv',encoding="ISO-8859-1", skiprows=7, index_col=False)
-# uhrh = gpd.read_file(uhrh_pth)
-# # uhrh['UHRH ID'] = uhrh['ident']
+soil_layer = pd.read_csv(pth_bv3c,encoding="ISO-8859-1", skiprows=7, index_col=False, delimiter = ';')
+uhrh = gpd.read_file(uhrh_pth)
+# uhrh.reset_index(inplace=True)   
+# uhrh = uhrh.drop(['index'], axis=1)
+merge = merge.drop(['ident_2'], axis=1)
 
-# uhrh_sol = uhrh.merge(soil_layer, left_on = 'ident', right_on = 'UHRH ID', how = 'inner')
+uhrh_sol = uhrh.merge(soil_layer, left_on = 'ident', right_on = 'UHRH ID', how = 'inner')
 
-# uhrh['Nhorizons'] = int(3)
+subbasin_uhrh = sjoin(subbasin,uhrh_sol,how = 'left', op='contains')
+# subbasin_uhrh.reset_index(inplace=True)  
 
-# uhrh_sol['hor1'] = merge['Soil_ID'].map(st)
-# uhrh_sol['hor2'] = 
-# uhrh_sol['hor3'] = 
-
-
-# uhrh_sol['th1'] = uhrh_sol['EPAISSEUR COUCHE 1 (m)'].astype(float)
-# uhrh_sol['th2'] = uhrh_sol['EPAISSEUR COUCHE 2 (m)'].astype(float)
-# uhrh_sol['th3'] = uhrh_sol['EPAISSEUR COUCHE 3 (m)'].astype(float)
+# subbasin_uhrh = subbasin_uhrh.drop(['index_right','level_0'], axis=1)
+# merge = merge.drop(['index','level_0'], axis=1)
 
 
+subbasin_uhrh = subbasin_uhrh.loc[:,['EPAISSEUR COUCHE 1 (m)','EPAISSEUR COUCHE 2 (m)','EPAISSEUR COUCHE 3 (m)','ident','geometry', 'UHRH ID']]
+
+# os.chdir(workspace)
+# subbasin_uhrh.to_file('subbasin_uhrh.shp')
+
+merge2 = sjoin(merge,subbasin_uhrh,how = 'left',op='within')
+merge2 = merge2.drop(['index','index_right','ident_left','ident_right'], axis=1)
+merge2.reset_index(inplace=True)  
+merge2 = merge2.drop(['index'], axis=1)
+
+
+merge3 = merge2.dissolve(by=['SubId','LAND_USE_CODE','SOIL_PROF'],aggfunc = 'first', as_index = False) #aggregate all the polygons that are lake in the hru
+
+merge3['Nhorizons'] = int(3)
+
+merge3['TOPSOIL'] = merge3['Soil_ID'].map(st)
+merge3['FAST_RES'] = merge3['Soil_ID'].map(st)
+merge3['SLOW_RES'] = merge3['Soil_ID'].map(st)
+
+
+merge3['th1'] = merge3['EPAISSEUR COUCHE 1 (m)'].astype(float)
+merge3['th2'] = merge3['EPAISSEUR COUCHE 2 (m)'].astype(float)
+merge3['th3'] = merge3['EPAISSEUR COUCHE 3 (m)'].astype(float)
+
+merge3 = merge3.drop(['EPAISSEUR COUCHE 1 (m)','EPAISSEUR COUCHE 2 (m)','EPAISSEUR COUCHE 3 (m)'], axis=1)
+
+
+# %% Extract the data for the Famine watershed
+
+
+
+merge3 = merge3.drop(['Lake_Area'], axis=1)
+
+for index, row in merge3.iterrows():
+    if merge3.loc[index,'VEG_C'] != 'WATER' and merge3.loc[index,'Depth_avg'] > 0.:
+        merge3.loc[index,'HRU_IsLake'] = -1
+        merge3.loc[index,'Lake_Cat'] = 0
+        merge3.loc[index,'LakeVol'] = 0
+        merge3.loc[index,'LakeDepth'] = 0
+        merge3.loc[index,'Depth_avg'] = 0       
+        merge3.loc[index,'HyLakeId'] = 0
+        merge3.loc[index,'TYPE_NO'] = 1
+        merge3.loc[index,'Laketype'] = 0
+        merge3.loc[index,'LakeArea'] = 0.0
+
+merge3['HRU_IsLake'] = -1
+for index, row in merge3.iterrows():
+    if merge3.loc[index,'Lake_Cat'] >0:
+        merge3.loc[index,'HRU_IsLake'] = 1
+
+
+for index, row in merge3.iterrows():
+    if merge3.loc[index,'Lake_Cat'] >0:
+        merge3.loc[index,'SOIL_PROF'] = 'LAKE'
 
 
 
 
+# %% Extract the data for the Famine watershed
+os.chdir(workspace)
+famine = gpd.read_file('subbasin_Famine3.shp')
+famine = famine.loc[:,['geometry']]
 
-# %%
 
 
+hru_famine = sjoin(merge3,famine,op='within')
+hru_famine = hru_famine.drop(['index_right'], axis=1)
 
 
-
-Famine = gpd.read_file('HRU_Famine_final.shp')
-
-HRU_Famine = merge.clip(Famine)
-
+hru_famine = hru_famine.to_crs(4326) # EPSG=4326 (WGS84)
+hru_famine['HRU_CenX'] = hru_famine.centroid.x
+hru_famine['HRU_CenY'] = hru_famine.centroid.y
 
 os.chdir(workspace)
-HRU_Famine.to_file('hru_Famine_v21.shp')
+hru_famine.to_file('hru_Famine_v21.shp')
 
 
 
