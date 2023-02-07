@@ -1,0 +1,36 @@
+
+"""
+Created on Tue Aug 16 12:17:32 2022
+
+@author: Mohammad Bizhanimanzar
+
+
+"""
+import geopandas as gpd
+from shapely.ops import nearest_points
+import os
+
+
+#read the dpolygon and point files
+hru = gpd.read_file('/home/mohammad/Dossier_travail/Raven/HRUs/HRU_MG24HA2020_SLSO_20P.shp')
+point = gpd.read_file('/home/mohammad/Dossier_travail/Raven/Grid/gridded_station.shp')
+
+hru["centroid"] = hru.centroid    
+# Create an union of the other GeoDataFrame's geometries:
+    
+def get_nearest_values(poly,point,column_to_get = 'station_id'):    
+    
+    points_union = point["geometry"].unary_union
+    
+    # Find the nearest points
+    nearest_geoms = nearest_points(poly["geometry"], points_union)
+            
+    
+    # Get corresponding values from the point dataset
+    nearest_data = point.loc[point["geometry"] == nearest_geoms[1]]
+    
+    nearest_value = nearest_data[column_to_get]
+    
+    return nearest_value
+
+hru["cell_id"] = hru.apply(get_nearest_values,point=point,column_to_get='station_id',axis=1)    

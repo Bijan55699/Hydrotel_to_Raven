@@ -12,9 +12,10 @@ import os
 from geopandas.tools import sjoin
 from rasterstats import zonal_stats
 import numpy as np
+
 # %% Step1: read the Troncon data (.mat file) and copy the physitel data to /HRU directory
-region = 'SLSO_TRONCON'
-Troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON.mat'
+region = 'EST_TRONCON'
+Troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/Atlas_2018/INFO_2018/INFO_TRONCON.mat'
 data = sio.loadmat(Troncon_path, struct_as_record=False, squeeze_me=True)
 region_name = data[region]
 size = region_name.shape[0]
@@ -22,8 +23,8 @@ s = size-1
 ss = 0
 ll=1
 
-workspace = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P/'
-pathtoDirectory = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
+workspace = '/home/mohammad/Dossier_travail/Hydrotel/DEH/Atlas_2018/EST_Atlas2018_Subbasin/'
+pathtoDirectory = '/home/mohammad/Dossier_travail/Hydrotel/DEH/Atlas_2018/SETZO_2018/EST_SETZO_2018/physitel'
 shutil.copytree(pathtoDirectory,workspace)
 os.chdir(workspace)
 # %% STEP2: Define a Troncon_info dataframe to work with appended data frame .mat file
@@ -51,14 +52,6 @@ Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'Ch_n'] = 0.
 Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'BnkfWidth'] = 0.
 Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'RivLength'] = 0. # for Lake subbasins, the RivLength=0 to avoid in-channel routing process
 Troncon_info.loc[Troncon_info.TYPE_NO == 2, 'RivSlope'] = 0. # 
-
-# ONly for SLSO
-# if region.casefold() == 'SLSO_TRONCON'.casefold():
-#     # Troncon_info.loc[Troncon_info['NODE_AVAL'] == 1, 'NODE_AVAL'] = 2
-#     # Troncon_info.loc[Troncon_info['NODE_AMONT'] == 2, 'NODE_AMONT'] = 1
-#     Troncon_info.loc[0,'NODE_AMONT'] = 1
-#     Troncon_info.loc[0,'NODE_AVAL'] = 2
-#     Troncon_info.at[1,'NODE_AMONT']  = np.append(Troncon_info.loc[1,'NODE_AMONT'],[1])
 
 
 
@@ -216,6 +209,54 @@ subbasin = subbasin.drop(['NODE_AVAL','NODE_AMONT','ASSOCI_UHRH','index_left','L
                           'Res_time','Elevation','Slope_100','Wshd_area','Pour_long','Pour_lat','Hylak_id','ident_left',
                           'ident_right','Lake_area','Vol_res','Vol_total','Lake_type'], axis=1)
 
+
+# schema = gpd.io.file.infer_schema(subbasin)
+# schema['properties']['BnkfWidth'] = 'float'
+# schema['properties']['Ch_n'] = 'float'
+# schema['properties']['FloodP_n'] = 'float'
+# schema['properties']['HyLakeId'] = 'int'
+# schema['properties']['Laketype'] = 'int'
+
+# subbasin['RivLength'] = subbasin['RivLength'].astype(float)
+# subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
+# subbasin['Ch_n'] = subbasin['Ch_n'].astype(float)
+# subbasin['RivSlope'] = subbasin['RivSlope'].astype(float)
+# subbasin['SA_Up'] = subbasin['SA_Up'].astype(float)
+# subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
+
+
+# os.chdir(workspace)
+# subbasin.to_file('subbasin.shp',schema = schema)
+
+
+
+# subbasin = gpd.read_file(pth4)
+
+# subbasin['DowSubId'] = 0
+# subbasin['RivLength'] = 0.0
+# subbasin['BkfWidth'] = 0.0
+# subbasin['BkfDepth'] = 0.0
+# subbasin['Has_Gauge'] = 0.0
+# subbasin['RivSlope'] = 0.0
+# subbasin['Ch_n'] = 0.0
+# subbasin['FloodP_n'] = 0.0
+# subbasin['Lake_Cat'] = int(0)
+
+
+# j=0
+# for index, row in subbasin.iterrows():
+#     if index > subbasin.index[-1]:
+#         break
+#     subbasin.loc[index,'DowSubId'] = Troncon_info['DowSubId'][j]
+#     subbasin.loc[index,'RivLength'] = Troncon_info['RivLength'][j]
+#     subbasin.loc[index,'BkfDepth'] = Troncon_info['BkfDepth'][j]
+#     subbasin.loc[index,'BkfWidth'] = Troncon_info['BnkfWidth'][j]
+#     subbasin.loc[index,'Has_Gauge'] = Troncon_info['Has_Gauge'][j]
+#     subbasin.loc[index,'RivSlope'] = Troncon_info['RivSlope'][j]
+#     subbasin.loc[index,'Ch_n'] = Troncon_info['Ch_n'][j]
+#     subbasin.loc[index,'FloodP_n'] = Troncon_info['Ch_n'][j]    # to be discussed
+#     subbasin.loc[index,'Lake_Cat'] = Troncon_info['Lake_Cat'][j]
+#     j = j+1
 
 
 
