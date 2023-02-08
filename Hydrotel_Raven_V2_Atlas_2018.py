@@ -7,7 +7,7 @@ Inputs:
 
 1- troncon_path: The path to The INFO_TRONCON.mat (provided by DEH) file which contains the river reaches (troncon) properties of the region.
 2- hydroteldir: The hydrotel project directory path
-3- workspace: The working directory to create the outputs
+3- hydroteldir: The working directory to create the outputs
 
 Ouput:
 
@@ -32,7 +32,7 @@ from rasterstats import zonal_stats
 import numpy as np
 
 
-def uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir):
+def uhrh_to_sub(region_name, troncon_path, hydroteldir):
     regions_list = ['ABIT_TRONCON','CNDA_TRONCON','CNDB_TRONCON','CNDC_TRONCON','CNDD_TRONCON','CNDE_TRONCON','GASP_TRONCON','LABI_TRONCON','MONT_TRONCON',
                     'OUTM_TRONCON','OUTV_TRONCON','SAGU_TRONCON','SLNO_TRONCON','SLSO_TRONCON','VAUD_TRONCON']
     if region_name not in regions_list:
@@ -40,8 +40,8 @@ def uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir):
     data = sio.loadmat(troncon_path, struct_as_record=False, squeeze_me=True)
     region = data[region_name]
     size = region.shape[0]
-    shutil.copytree(hydroteldir, workspace)
-    os.chdir(workspace)
+    # shutil.copytree(hydroteldir, hydroteldir)
+    # os.chdir(hydroteldir)
     df = []
     for i in range(size):
         rec = region[i]
@@ -61,9 +61,7 @@ def uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir):
                                              "SA_Up": float,
                                              "Has_Gauge":int,
                                              "Lake_Cat":int,
-                                             "DowSubId":int},
-                                index=None,
-                                )
+                                             "DowSubId":int}, index=None)
     # special values for non-river (lake) features
     troncon_info['Has_Gauge'] = 0  # Has_Gauge should be always 0 in the shapefile (strange?)
     troncon_info['BkfDepth'] = 0.13 * (troncon_info['SA_Up'] ** 0.4)  # taken from equation 10 of Fossey et. al., 2015
@@ -71,7 +69,7 @@ def uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir):
     troncon_info['Lake_Cat'] = 0
     troncon_info.loc[troncon_info.TYPE_NO == 2, 'Lake_Cat'] = 1 # for Lakes
     # Assigning the SubId to uhrh geodataframe
-    uhrh_fpth = os.path.join(workspace, "uhrh" + "." + "shp")  # The uhrh shape file created by Physitel
+    uhrh_fpth = os.path.join(hydroteldir, "uhrh" + "." + "shp")  # The uhrh shape file created by Physitel
     uhrh = gpd.read_file(uhrh_fpth)
     uhrh['SubId'] = 0
 
@@ -115,9 +113,9 @@ def uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir):
             if naval in nal:  # if naval (downstream node) for reach i is upstream node for reach j, then reach j is downstream reach i
                 troncon_info.loc[i, 'DowSubId'] = id
     return troncon_info, uhrh_dissolve
-def process_lakes(workspace, hydrolakes_file,troncon_info,uhrh_dissolve):
+def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
     HyLAKES_Canada = gpd.read_file(hydrolakes_file)
-    pth3 = os.path.join(workspace, "lacs" + "." + "shp")  # The lake shape file created by Physitel
+    pth3 = os.path.join(hydroteldir, "lacs" + "." + "shp")  # The lake shape file created by Physitel
     Hydrotel_lakes = gpd.read_file(pth3)
 
     join_lakes_attr = sjoin(HyLAKES_Canada, Hydrotel_lakes, how="right")
@@ -164,7 +162,7 @@ def process_lakes(workspace, hydrolakes_file,troncon_info,uhrh_dissolve):
     lake_final['Depth_avg'].fillna(lake_final['Vol_total'] / lake_final['Lake_area'], inplace=True)
     # lake_final['index'] = lake_final['index'].astype(int)
 
-    # os.chdir(workspace)
+    # os.chdir(hydroteldir)
     lake_final.to_file('lake_final.shp')
 
     # Intersecting with uhrh_dissolve to find the SubId of each lake
@@ -191,11 +189,11 @@ def create_subbasin(troncon_info,lake_sub):
          'Res_time', 'Elevation', 'Slope_100', 'Wshd_area', 'Pour_long', 'Pour_lat', 'Hylak_id', 'ident_left',
          'ident_right', 'Lake_area', 'Vol_res', 'Vol_total', 'Lake_type'], axis=1)
     return subbasin
-def add_sub_attributes(workspace, subbasin):
+def add_sub_attributes(hydroteldir, subbasin):
     # calculating subbasin properties
     # 1. Slope
     # slope must be between 0 to 60 degree (http://hydrology.uwaterloo.ca/basinmaker/data/resources/attribute_tables_20210429.pdf)
-    os.chdir(workspace)
+    os.chdir(hydroteldir)
     cmd_slope = 'gdaldem  slope altitude.tif slope.tif -compute_edges'
     os.system(cmd_slope)
 
@@ -204,8 +202,8 @@ def add_sub_attributes(workspace, subbasin):
     os.system(cmd_aspect)
 
     # loop over the subbasin features and adding the mean elevation, mean aspect and
-    ss = os.path.join(workspace, "slope" + "." + "tif")  # The lake shape file created by Physitel
-    # pth5 = os.path.join(workspace,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
+    ss = os.path.join(hydroteldir, "slope" + "." + "tif")  # The lake shape file created by Physitel
+    # pth5 = os.path.join(hydroteldir,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
     # subbasin = gpd.read_file(pth5)
 
     subbasin = subbasin.join(
@@ -225,7 +223,7 @@ def add_sub_attributes(workspace, subbasin):
     subbasin = subbasin.drop(['mean'], axis=1)
 
     # aspect
-    aa = os.path.join(workspace, "aspect" + "." + "tif")  # The lake shape file created by Physitel
+    aa = os.path.join(hydroteldir, "aspect" + "." + "tif")  # The lake shape file created by Physitel
 
     subbasin = subbasin.join(
         pd.DataFrame(
@@ -243,7 +241,7 @@ def add_sub_attributes(workspace, subbasin):
 
     # elevation
 
-    ee = os.path.join(workspace, "altitude" + "." + "tif")  # The lake shape file created by Physitel
+    ee = os.path.join(hydroteldir, "altitude" + "." + "tif")  # The lake shape file created by Physitel
 
     subbasin = subbasin.join(
         pd.DataFrame(
@@ -267,7 +265,7 @@ def add_sub_attributes(workspace, subbasin):
     # schema['properties']['HyLakeId'] = 'int'
     # schema['properties']['Laketype'] = 'int'
 
-    os.chdir(workspace)
+    os.chdir(hydroteldir)
     # subbasin.to_file('subbasin.shp', schema=schema)
     subbasin.to_file('subbasin.shp')
 
@@ -278,9 +276,9 @@ def add_sub_attributes(workspace, subbasin):
 
 if __name__ == "__main__":
     region_name = 'SLSO_TRONCON'
-    troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON.mat'
-    workspace = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P/'
+    troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON_test.mat'
+    hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P/'
     hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
-    uhrh_to_sub(region_name, troncon_path, workspace, hydroteldir)
-    process_lakes(workspace, hydrolakes_file, troncon_info, uhrh_dissolve)
+    [troncon_info, uhrh_dissolve] = uhrh_to_sub(region_name, troncon_path, hydroteldir)
+    process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file)
     # main()
