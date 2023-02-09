@@ -115,20 +115,19 @@ def uhrh_to_sub(region_name, troncon_path, hydroteldir):
     return troncon_info, uhrh_dissolve
 def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
     HyLAKES_Canada = gpd.read_file(hydrolakes_file)
-    pth3 = os.path.join(hydroteldir, "lacs" + "." + "shp")  # The lake shape file created by Physitel
-    Hydrotel_lakes = gpd.read_file(pth3)
+    HyLAKES = gpd.clip(HyLAKES_Canada,uhrh_dissolve) # here we mask the Lakes of the region
+    Hydrotel_lakes = gpd.read_file(os.path.join(hydroteldir, "lacs" + "." + "shp"))  # The lake shape file in Hydrotel
 
-    join_lakes_attr = sjoin(HyLAKES_Canada, Hydrotel_lakes, how="right")
+    join_lakes_attr = sjoin(HyLAKES, Hydrotel_lakes, how="right")
 
-    # Dealing with cases where there are two lakes in subwatershed whereas only one lake is identified in the lacs.shp shapefile by Hydrotel
-    # finding rows with similar ident (uhrh) value
+    # Dealing with cases where Hydrotel lake is the merge of two neighbouring lakes in HydroLAKES.
     repeatd_ident = join_lakes_attr[join_lakes_attr.duplicated(subset=['ident'], keep=False)]
+    # join_lakes_attr.to_file('join_lakes_attr.shp')
+    # uhrh_dissolve.to_file('uhrh_dissolve.shp')
+
 
     repeatd_ident.reset_index(level=0, inplace=True)
 
-    # diss_repeat =
-
-    # diss_repeat = repeatd_ident.groupby('index')['returns'].agg(Mean='mean', Sum='sum')
 
     aggfn = {'ident': 'first', 'Shape_Area': 'sum', 'Depth_avg': 'mean', 'Vol_total': 'sum', 'Lake_area': 'sum',
              'Lake_type': 'first', 'index': 'first',
@@ -139,48 +138,51 @@ def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
     diss_repeat['Lake_type'] = int(1)
 
     join_lakes_attr = join_lakes_attr.drop(diss_repeat.index)
-    lake_final = (pd.concat([join_lakes_attr, diss_repeat])).sort_index()
-    lake_final = lake_final.drop(['index_left'], axis=1)
+    lake = (pd.concat([join_lakes_attr, diss_repeat])).sort_index()
+    lake = lake.drop(['index_left'], axis=1)
 
-    # fill NaN attributes in lake_final polygon
+    # fill NaN attributes in lake polygon
 
-    lake_final['Country'].fillna('Canada', inplace=True)
-    lake_final['Continent'].fillna('North America', inplace=True)
-    lake_final['Poly_src'].fillna('Hydrotel', inplace=True)
-    lake_final['Lake_type'].fillna(1, inplace=True)
-    lake_final['Shape_Area'].fillna(lake_final.area, inplace=True)
-    lake_final['Lake_area'].fillna(lake_final['Shape_Area'] / 1000000, inplace=True)
-    lake_final['Hylak_id'].fillna(100, inplace=True)
+    lake['Country'].fillna('Canada', inplace=True)
+    lake['Continent'].fillna('North America', inplace=True)
+    lake['Poly_src'].fillna('Hydrotel', inplace=True)
+    lake['Lake_type'].fillna(1, inplace=True)
+    lake['Shape_Area'].fillna(lake.area, inplace=True)
+    lake['Lake_area'].fillna(lake['Shape_Area'] / 1000000, inplace=True)
+    lake['Hylak_id'].fillna(100, inplace=True)
 
-    # Regional relationship for lake's volume-area for Quebec: ref: Heathcote et al., 2016.
-    lake_final['Vol_total'].fillna(
-        1 / 1000000 * (np.power(10, 1.165 * np.log10(lake_final['Shape_Area']) + np.log10(0.758))),
+    # Regional relationship for lake's volume-area for Quebec: ref: https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2016GL071378.
+    lake['Vol_total'].fillna(
+        1 / 1000000 * (np.power(10, 1.165 * np.log10(lake['Shape_Area']) + np.log10(0.758))),
         inplace=True)  # volume is in MCM and area is in m
 
-    lake_final['Hylak_id'] = lake_final['Hylak_id'].astype(int)
-    lake_final['Lake_type'] = lake_final['Lake_type'].astype(int)
-    lake_final['Depth_avg'].fillna(lake_final['Vol_total'] / lake_final['Lake_area'], inplace=True)
-    # lake_final['index'] = lake_final['index'].astype(int)
+    lake['Hylak_id'] = lake['Hylak_id'].astype(int)
+    lake['Lake_type'] = lake['Lake_type'].astype(int)
+    lake['Depth_avg'].fillna(lake['Vol_total'] / lake['Lake_area'], inplace=True)
+    # lake['index'] = lake['index'].astype(int)
 
     # os.chdir(hydroteldir)
-    lake_final.to_file('lake_final.shp')
+    lake.to_file('lake.shp')
 
     # Intersecting with uhrh_dissolve to find the SubId of each lake
-    lake_sub = sjoin(lake_final, uhrh_dissolve, how='right', op='within')
+    lake_final = sjoin(lake, uhrh_dissolve, how='right', op='within')
 
-    lake_sub['LakeArea'] = lake_sub['Lake_area'] * 1000000.  # To convert the area in Km2 in HydroLAKES database to m2
-    lake_sub['LakeVol'] = lake_sub['Vol_total'] / 1000.  # To convert the volume in MCM in HydroLAKES database to km3
-    lake_sub['LakeDepth'] = lake_sub['Depth_avg']
+    lake_final['LakeArea'] = lake_final['Lake_area'] * 1000000.  # To convert the area in Km2 in HydroLAKES database to m2
+    lake_final['LakeVol'] = lake_final['Vol_total'] / 1000.  # To convert the volume in MCM in HydroLAKES database to km3
+    lake_final['LakeDepth'] = lake_final['Depth_avg']
 
-def create_subbasin(troncon_info,lake_sub):
-    subbasin = pd.merge(troncon_info, lake_sub, on='SubId')
+    lake_final.to_file(os.path.join(hydroteldir, "lake_final" + "." + "shp"))
+    return troncon_info, lake_final
+
+def create_subbasin(troncon_info,lake_final):
+    subbasin = pd.merge(troncon_info, lake_final, on='SubId')
     # Lake data from HydroLAKES database
     subbasin['HyLakeId'] = subbasin['Hylak_id']
     subbasin['Laketype'] = subbasin['Lake_type']
     subbasin['FloodP_n'] = subbasin['Ch_n']
     # subbasin['LakeArea'] = subbasin['Lake_area']
 
-    crs = lake_sub.crs
+    crs = lake_final.crs
     subbasin = gpd.GeoDataFrame(subbasin, geometry=subbasin['geometry'], crs=crs)
 
     subbasin = subbasin.drop(
@@ -277,8 +279,10 @@ def add_sub_attributes(hydroteldir, subbasin):
 if __name__ == "__main__":
     region_name = 'SLSO_TRONCON'
     troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON_test.mat'
-    hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P/'
+    hydrolakes_file = '/home/mohammad/Dossier_travail/Hydrotel/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10_Canada2.shp'
     hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
     [troncon_info, uhrh_dissolve] = uhrh_to_sub(region_name, troncon_path, hydroteldir)
-    process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file)
+    [lake_final] = process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file)
+
+
     # main()
