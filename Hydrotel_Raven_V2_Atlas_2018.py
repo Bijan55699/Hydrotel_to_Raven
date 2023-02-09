@@ -30,13 +30,14 @@ import os
 from geopandas.tools import sjoin
 from rasterstats import zonal_stats
 import numpy as np
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def uhrh_to_sub(region_name, troncon_path, hydroteldir):
     regions_list = ['ABIT_TRONCON','CNDA_TRONCON','CNDB_TRONCON','CNDC_TRONCON','CNDD_TRONCON','CNDE_TRONCON','GASP_TRONCON','LABI_TRONCON','MONT_TRONCON',
                     'OUTM_TRONCON','OUTV_TRONCON','SAGU_TRONCON','SLNO_TRONCON','SLSO_TRONCON','VAUD_TRONCON']
     if region_name not in regions_list:
-        print('the'+region_name+'is not recognized! please make sure the name is among the regions list!')
+        raise ValueError("the %s is not recognized! please make sure the region_name is correct!" %region_name)
     data = sio.loadmat(troncon_path, struct_as_record=False, squeeze_me=True)
     region = data[region_name]
     size = region.shape[0]
@@ -113,7 +114,7 @@ def uhrh_to_sub(region_name, troncon_path, hydroteldir):
             if naval in nal:  # if naval (downstream node) for reach i is upstream node for reach j, then reach j is downstream reach i
                 troncon_info.loc[i, 'DowSubId'] = id
     return troncon_info, uhrh_dissolve
-def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
+def process_lakes(uhrh_dissolve,hydroteldir, hydrolakes_file):
     HyLAKES_Canada = gpd.read_file(hydrolakes_file)
     HyLAKES = gpd.clip(HyLAKES_Canada,uhrh_dissolve) # here we mask the Lakes of the region
     Hydrotel_lakes = gpd.read_file(os.path.join(hydroteldir, "lacs" + "." + "shp"))  # The lake shape file in Hydrotel
@@ -162,7 +163,7 @@ def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
     # lake['index'] = lake['index'].astype(int)
 
     # os.chdir(hydroteldir)
-    lake.to_file('lake.shp')
+    # lake.to_file('lake.shp')
 
     # Intersecting with uhrh_dissolve to find the SubId of each lake
     lake_final = sjoin(lake, uhrh_dissolve, how='right', op='within')
@@ -170,9 +171,9 @@ def process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file):
     lake_final['LakeArea'] = lake_final['Lake_area'] * 1000000.  # To convert the area in Km2 in HydroLAKES database to m2
     lake_final['LakeVol'] = lake_final['Vol_total'] / 1000.  # To convert the volume in MCM in HydroLAKES database to km3
     lake_final['LakeDepth'] = lake_final['Depth_avg']
-
-    lake_final.to_file(os.path.join(hydroteldir, "lake_final" + "." + "shp"))
-    return troncon_info, lake_final
+    os.chdir(hydroteldir)
+    lake_final.to_file('lake_final.shp')
+    return lake_final
 
 def create_subbasin(troncon_info,lake_final):
     subbasin = pd.merge(troncon_info, lake_final, on='SubId')
@@ -192,7 +193,7 @@ def create_subbasin(troncon_info,lake_final):
          'ident_right', 'Lake_area', 'Vol_res', 'Vol_total', 'Lake_type'], axis=1)
     return subbasin
 def add_sub_attributes(hydroteldir, subbasin):
-    # calculating subbasin properties
+    # calculating subbasin-scale properties
     # 1. Slope
     # slope must be between 0 to 60 degree (http://hydrology.uwaterloo.ca/basinmaker/data/resources/attribute_tables_20210429.pdf)
     os.chdir(hydroteldir)
@@ -259,30 +260,24 @@ def add_sub_attributes(hydroteldir, subbasin):
     subbasin['MeanElev'] = subbasin['mean']
     subbasin = subbasin.drop(['mean'], axis=1)
 
-    # writing the final subbasin map
-    # schema = gpd.io.file.infer_schema(subbasin)
-    # schema['properties']['BnkfWidth'] = 'float'
-    # schema['properties']['Ch_n'] = 'float'
-    # schema['properties']['FloodP_n'] = 'float'
-    # schema['properties']['HyLakeId'] = 'int'
-    # schema['properties']['Laketype'] = 'int'
+    subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
+    subbasin['Ch_n'] = subbasin['Ch_n'].astype(float)
+    subbasin['FloodP_n'] = subbasin['FloodP_n'].astype(float)
+    subbasin['HyLakeId'] = subbasin['HyLakeId'].astype(int)
+    subbasin['Laketype'] = subbasin['Laketype'].astype(int)
 
-    os.chdir(hydroteldir)
-    # subbasin.to_file('subbasin.shp', schema=schema)
     subbasin.to_file('subbasin.shp')
 
-# def main():
-
-
-
-
-if __name__ == "__main__":
+def main():
     region_name = 'SLSO_TRONCON'
     troncon_path = '/home/mohammad/Dossier_travail/Hydrotel/DEH/INFO_TRONCON_test.mat'
     hydrolakes_file = '/home/mohammad/Dossier_travail/Hydrotel/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10_Canada2.shp'
     hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
+    # methods
     [troncon_info, uhrh_dissolve] = uhrh_to_sub(region_name, troncon_path, hydroteldir)
-    [lake_final] = process_lakes(troncon_info, uhrh_dissolve,hydroteldir, hydrolakes_file)
+    lake_final = process_lakes(uhrh_dissolve,hydroteldir, hydrolakes_file)
+    subbasin   = create_subbasin(troncon_info, lake_final)
+    add_sub_attributes(hydroteldir, subbasin)
 
-
-    # main()
+if __name__ == "__main__":
+    main()
