@@ -31,10 +31,6 @@ for index, row in stations.iterrows():
      df['drain_to'] = fid
      df_dissolve = df.dissolve(by = ["drain_to"], aggfunc = 'first', as_index = False)
      merge = merge.append(df_dissolve)
-     # del df_dissolve
-     # merge = temp2
-     # fname = "SubbasinsUp_%s.shp" %fid
-     # df_dissolve.to_file(fname)
      
 merge.to_file('merged_subbasins.shp')
 

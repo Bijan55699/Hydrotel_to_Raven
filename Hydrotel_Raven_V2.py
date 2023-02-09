@@ -4,14 +4,15 @@ This script creates the subbasin map from a Hydrotel project directory
 Inputs:
 
 1- region_name = should be among following list:
+2- troncon_path: The path to The INFO_TRONCON.mat (provided by DEH) file which contains the river reaches (troncon) properties of the region.
+3- Hydroteldir: The hydrotel project directory path
+4- Hydrolakes_file : THe directory to HydroLakes lake file
 
-1- troncon_path: The path to The INFO_TRONCON.mat (provided by DEH) file which contains the river reaches (troncon) properties of the region.
-2- hydroteldir: The hydrotel project directory path
-3- hydroteldir: The working directory to create the outputs
+
 
 Ouput:
 
-1- Subbasin polygon
+1- Subbasin map
 
 
 References:
@@ -30,8 +31,9 @@ import os
 from geopandas.tools import sjoin
 from rasterstats import zonal_stats
 import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
+# import warnings
+# warnings.filterwarnings("ignore")
+from ravenpy.utilities.geoserver import _determine_upstream_ids
 
 def uhrh_to_sub(region_name, troncon_path, hydroteldir):
     regions_list = ['ABIT_TRONCON','CNDA_TRONCON','CNDB_TRONCON','CNDC_TRONCON','CNDD_TRONCON','CNDE_TRONCON','GASP_TRONCON','LABI_TRONCON','MONT_TRONCON',
@@ -260,12 +262,12 @@ def add_sub_attributes(hydroteldir, subbasin):
     subbasin['MeanElev'] = subbasin['mean']
     subbasin = subbasin.drop(['mean'], axis=1)
 
+    # Making sure the data types are ok...
     subbasin['BnkfWidth'] = subbasin['BnkfWidth'].astype(float)
     subbasin['Ch_n'] = subbasin['Ch_n'].astype(float)
     subbasin['FloodP_n'] = subbasin['FloodP_n'].astype(float)
     subbasin['HyLakeId'] = subbasin['HyLakeId'].astype(int)
     subbasin['Laketype'] = subbasin['Laketype'].astype(int)
-
     subbasin.to_file('subbasin.shp')
 
 
@@ -281,6 +283,8 @@ def main():
     lake_final = process_lakes(uhrh_dissolve,hydroteldir, hydrolakes_file)
     subbasin   = create_subbasin(troncon_info, lake_final)
     add_sub_attributes(hydroteldir, subbasin)
+    merge_subbasins(subbasin)
+
 
 if __name__ == "__main__":
     main()

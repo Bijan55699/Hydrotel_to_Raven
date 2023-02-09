@@ -1,6 +1,9 @@
 """
-This script delineates the HRU map of a watershed using the Physitel inputs/outputs
+This script delineates the HRU map of region using subbasin map and other geospatial inputs of Hydrotel.
+
 @author: mohbiz1@ouranos.ca
+
+
 
 """
 
@@ -18,19 +21,34 @@ from pyproj.crs import CRS
 ss=0
 
 # pathtoDirectory = '/home/mohammad/Dossier_travail/Hydrotel/DEH/MG24HA/SLSO_MG24HA_2020/physitel'
-# # workspace = os.path.join(pathtoDirectory+ "/HRU")
+# # hydroteldir = os.path.join(pathtoDirectory+ "/HRU")
 
-workspace = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P'
+def read_inputs (hydroteldir):
+    subwshd_pth = os.path.join(hydroteldir,'subbasin' + "." + "shp")  # subwatershed map created by Hydrotel_Raven_V2 script
+    lu_raster = os.path.join(hydroteldir, "occupation_sol" + "." + "tif")  # Lu map in raster
+    soil_raster = os.path.join(hydroteldir, "type_sol" + "." + "tif")  # soil type map in raster
+    lake = os.path.join(hydroteldir, "lake_final" + "." + "shp")  # lake map
+    altitude = os.path.join(hydroteldir, "altitude" + "." + "tif")  # The altitude raster map
+    aspect = os.path.join(hydroteldir, "orientation" + "." + "tif")  # The aspect raster map
+    slope = os.path.join(hydroteldir, "slope" + "." + "tif")  # The slope raster map
+    uhrh_pth = os.path.join(hydroteldir, "uhrh" + "." + "shp")  # uhrh map of the region (created by Physitel)
+    subbasin = gpd.read_file(subwshd_pth)
+    lake_poly = gpd.read_file(lake)
+    
+    
+    
+    
+hydroteldir = '/home/mohammad/Dossier_travail/Hydrotel/DEH/HRUs_Quebec_meridional/SLSO/20P'
 #read the subbasin, land use, and soil maps
 
-subwshd_pth = os.path.join(workspace,"subbasin"+"."+"shp") #subwatershed map created by Hydrotel_Raven_V2 script
-lu_raster = os.path.join(workspace,"occupation_sol"+"."+"tif") #Lu map in raster
-soil_raster = os.path.join(workspace,"type_sol"+"."+"tif") #soil type map in raster
-lake = os.path.join(workspace,"lake_final"+"."+"shp") #lake map
-altitude = os.path.join(workspace,"altitude"+ "." + "tif") # The altitude raster map
-aspect = os.path.join(workspace,"orientation"+ "." + "tif") # The aspect raster map
-slope = os.path.join(workspace,"slope"+ "." + "tif") # The slope raster map
-uhrh_pth = os.path.join(workspace,"uhrh"+"."+"shp") # uhrh map of the region (created by Physitel)
+subwshd_pth = os.path.join(hydroteldir,"subbasin"+"."+"shp") #subwatershed map created by Hydrotel_Raven_V2 script
+lu_raster = os.path.join(hydroteldir,"occupation_sol"+"."+"tif") #Lu map in raster
+soil_raster = os.path.join(hydroteldir,"type_sol"+"."+"tif") #soil type map in raster
+lake = os.path.join(hydroteldir,"lake_final"+"."+"shp") #lake map
+altitude = os.path.join(hydroteldir,"altitude"+ "." + "tif") # The altitude raster map
+aspect = os.path.join(hydroteldir,"orientation"+ "." + "tif") # The aspect raster map
+slope = os.path.join(hydroteldir,"slope"+ "." + "tif") # The slope raster map
+uhrh_pth = os.path.join(hydroteldir,"uhrh"+"."+"shp") # uhrh map of the region (created by Physitel)
 subbasin = gpd.read_file(subwshd_pth)
 lake_poly = gpd.read_file(lake)
 
@@ -89,7 +107,7 @@ soil_poly['soil_ID'] = soil_poly['soil_ID'].astype(int)
 
 hru1 = gpd.overlay(lu_poly, soil_poly, how='intersection')
 
-# os.chdir(workspace)
+# os.chdir(hydroteldir)
 # hru1.to_file('hru1.shp')
 
 
@@ -207,7 +225,7 @@ for index, row in hru8.iterrows():
         
 
 
-#os.chdir(workspace)
+#os.chdir(hydroteldir)
 hru8.to_file('hru8.shp')
 
 
@@ -217,7 +235,7 @@ hru8.to_file('hru8.shp')
 # rst = rasterio.open("occupation_sol.tif")
 # meta = rst.meta.copy()
 
-# subbasin_ras = os.path.join(workspace,"subbasin"+ "." + "tif") # The subbasin raster map
+# subbasin_ras = os.path.join(hydroteldir,"subbasin"+ "." + "tif") # The subbasin raster map
 
 # with rasterio.open(subbasin_ras, 'w+', **meta) as out:
 #     out_arr = out.read(1)
@@ -228,8 +246,8 @@ hru8.to_file('hru8.shp')
 #     burned = features.rasterize(shapes=shapes, fill=0, out=out_arr, transform=out.transform)
 #     out.write_band(1, burned)
     
-# out = os.path.join(workspace,"out"+ "." + "sdat") # The subbasin raster map
-# out_table = os.path.join(workspace,"out_table"+ "." + "dbf") # The subbasin raster map
+# out = os.path.join(hydroteldir,"out"+ "." + "sdat") # The subbasin raster map
+# out_table = os.path.join(hydroteldir,"out_table"+ "." + "dbf") # The subbasin raster map
 
 # os.system("saga_cmd grid_analysis 13 " + "-INPUT " + subbasin_ras + "-INPUT2 " + lu_raster + " -RESULTGRID " + out + "-RESULTTABLE "+ out_table + "-MAXNUMCLASS " + "10")
 
@@ -346,7 +364,7 @@ merge['LAND_USE_CODE'] = merge['LU_agg'].map(lu_codes)
 merge['VEG_C'] = merge['LAND_USE_CODE']
 
 merge['VEG_C'] = merge['VEG_C'].astype(str)
-# os.chdir(workspace)
+# os.chdir(hydroteldir)
 # merge.to_file('hru10.shp')
 
 # %% add latitude,longitude, HRU ID, Slope, aspect, and Elevation to the HRU feature class
@@ -394,7 +412,7 @@ merge = merge.drop(['mean'], axis=1)
 # adding mean slope
 
 
-# pth5 = os.path.join(workspace,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
+# pth5 = os.path.join(hydroteldir,"subbasin"+ "." + "shp") # The lake shape file created by Physitel
 # subbasin = gpd.read_file(pth5)
 
 merge = merge.join(
@@ -477,7 +495,7 @@ subbasin_uhrh = sjoin(subbasin,uhrh_sol,how = 'left', op='contains')
 
 subbasin_uhrh = subbasin_uhrh.loc[:,['EPAISSEUR COUCHE 1 (m)','EPAISSEUR COUCHE 2 (m)','EPAISSEUR COUCHE 3 (m)','ident','geometry', 'UHRH ID']]
 
-# os.chdir(workspace)
+# os.chdir(hydroteldir)
 # subbasin_uhrh.to_file('subbasin_uhrh.shp')
 
 merge2 = sjoin(merge,subbasin_uhrh,how = 'left',op='within')
@@ -536,14 +554,14 @@ merge3 = merge3.to_crs(4326) # EPSG=4326 (WGS84)
 merge3['HRU_CenX'] = merge3.centroid.x
 merge3['HRU_CenY'] = merge3.centroid.y
 
-os.chdir(workspace)
+os.chdir(hydroteldir)
 merge3.to_file('HRU_MG24HA2020_SLSO_20P.shp')
 
 
 
 
 # %% Extract the data for the Famine watershed
-os.chdir(workspace)
+os.chdir(hydroteldir)
 famine = gpd.read_file('subbasin_Famine3.shp')
 famine = famine.loc[:,['geometry']]
 
@@ -557,7 +575,7 @@ hru_famine = hru_famine.to_crs(4326) # EPSG=4326 (WGS84)
 hru_famine['HRU_CenX'] = hru_famine.centroid.x
 hru_famine['HRU_CenY'] = hru_famine.centroid.y
 
-os.chdir(workspace)
+os.chdir(hydroteldir)
 hru_famine.to_file('hru_Famine_v21.shp')
 
 
